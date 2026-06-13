@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+privada.key
+certificado.crt
+pedido.csr
+*.log
