@@ -2021,6 +2021,9 @@
                     <td><button class="btn secondary" onclick="editProd('${s.code}')"><i class="fas fa-edit"></i></button> <button class="btn-sm" style="color:var(--danger);" onclick="deleteProd('${s.code}')"><i class="fas fa-trash"></i></button></td>
                 </tr>`;
             }).join('');
+
+            if(filtered.length > 100) html += `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:15px; font-size:12px;">Mostrando 100 de ${filtered.length} productos. Usá el buscador para refinar.</td></tr>`;
+            tbody.innerHTML = html;
         }
         function toggleAllStock(src) { document.querySelectorAll('.stock-chk').forEach(c => c.checked = src.checked); }
 
@@ -3047,10 +3050,7 @@
                         </div>`;
                     }).join('');
                 }
-            }
-            
-            if(filtered.length > 100) html += `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:15px;">Mostrando 100 de ${filtered.length} productos. Por favor, usa el buscador.</td></tr>`;
-            tbody.innerHTML = html;
+            }\n
         }
 
         // --- BÚSQUEDA MANUAL DE VENTAS ---
