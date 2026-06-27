@@ -39,6 +39,12 @@ function initDB() {
         db.run(`CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, description TEXT, amount REAL, method TEXT, user TEXT, ts INTEGER DEFAULT 0)`);
 
         db.run(`CREATE TABLE IF NOT EXISTS shifts (id INTEGER PRIMARY KEY AUTOINCREMENT, date_open TEXT, date_close TEXT, user_open TEXT, user_close TEXT, monto_inicial REAL DEFAULT 0, status TEXT DEFAULT 'open', ts_open INTEGER DEFAULT 0)`);
+        
+        // --- OPTIMIZACIONES DE RENDIMIENTO (Índices) ---
+        db.run(`CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_client_movements_client_id ON client_movements(client_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_client_movements_date ON client_movements(date)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
         // Recuperación Admin
         db.get("SELECT * FROM users WHERE name = 'Admin'", (err, row) => {
             if (!row) db.run("INSERT INTO users (name, pin) VALUES ('Admin', '1111')");

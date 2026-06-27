@@ -406,6 +406,10 @@
             border-bottom: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.6px; z-index: 5;
         }
         td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-main); transition: background 0.12s; }
+        
+        /* OPTIMIZACIÓN DOM BAJOS RECURSOS: Congela el renderizado de filas no visibles */
+        tbody tr { content-visibility: auto; contain-intrinsic-size: 45px; }
+        
         tr:last-child td { border-bottom: none; }
         tr:hover td { background: var(--bg-hover); }
 
@@ -3047,7 +3051,15 @@
             document.getElementById('manualSearchInput').value = '';
             document.getElementById('manualSearchTable').innerHTML = '';
             document.getElementById('manual-search-overlay').classList.add('active');
-            setTimeout(() => document.getElementById('manualSearchInput').focus(), 100);
+            
+            // Configurar el debounce si no existe
+            const input = document.getElementById('manualSearchInput');
+            if (!input.dataset.debounced) {
+                input.addEventListener('input', debounce(() => renderManualSearch(), 300));
+                input.dataset.debounced = "true";
+            }
+            
+            setTimeout(() => input.focus(), 100);
             renderManualSearch();
         }
 
@@ -3095,7 +3107,7 @@
                 <button class="btn-close" onclick="closeManualSearch()"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <input type="text" id="manualSearchInput" class="form-control" placeholder="Buscar por nombre, código o categoría..." oninput="renderManualSearch()" autocomplete="off" style="margin-bottom:15px;">
+                <input type="text" id="manualSearchInput" class="form-control" placeholder="Buscar por nombre, código o categoría..." autocomplete="off" style="margin-bottom:15px;">
                 <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                     <table>
                         <thead>
