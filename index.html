@@ -1816,9 +1816,8 @@
         function renderClients() {
             const q = document.getElementById('searchClient').value.toLowerCase();
             const tbody = document.querySelector('#clientsTable tbody');
-            // OPTIMIZACIÓN: Limitamos a 50 resultados
             const matches = DB.clients.filter(c => c.name.toLowerCase().includes(q));
-            const toRender = matches.slice(0, 50);
+            const toRender = matches;
             tbody.innerHTML = toRender.map(c => `<tr><td><strong>${c.name}</strong><br><small>DNI: ${c.dni || '-'}</small></td><td>${c.phone}</td><td>${c.address}</td><td style="color:${c.balance > 0 ? 'var(--danger)' : 'var(--accent)'}; font-weight:bold">$${Math.abs(c.balance).toFixed(2)}</td><td><button class="btn secondary" onclick="openClientDetails(${c.id})"><i class="fas fa-list"></i></button> <button class="btn secondary" onclick="openPayBox(${c.id})"><i class="fas fa-hand-holding-usd"></i></button> <button class="btn secondary" onclick="editClient(${c.id})"><i class="fas fa-edit"></i></button> <button class="btn-sm" style="color:red; margin-left:5px" onclick="deleteClient(${c.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('');
         }
         function openPayBox(id) { clientToPay = DB.clients.find(x => x.id === id); document.getElementById('paymentBox').style.display = 'block'; document.getElementById('lblDebt').innerText = '$' + clientToPay.balance.toFixed(2); document.getElementById('payAmt').focus(); }
@@ -1990,8 +1989,7 @@
             }
 
             // --- RENDERIZADO (PAGINACIÓN VIRTUAL SIMPLE) ---
-            const LIMIT = (filtered.length === DB.stock.length) ? 50 : 200;
-            const toRender = filtered.slice(0, LIMIT);
+            const toRender = filtered;
 
             tbody.innerHTML = toRender.map(s => {
                 // Color Stock
