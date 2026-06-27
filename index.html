@@ -672,10 +672,9 @@
                         <div
                             style="padding:20px; background:var(--bg-card); border-bottom:1px solid var(--border-color);">
                             <div class="row" style="align-items:flex-end">
-                                <div style="flex:1"><label>Escanear</label><input id="scanInput" placeholder="Código..."
-                                        autofocus></div>
-                                <div style="width:100px"><label>Cant.</label><input id="scanQty" type="number" value="1"
-                                        min="1" style="text-align:center"></div>
+                                <div style="flex:1"><label>Escanear</label><input id="scanInput" placeholder="Código..." autofocus></div>
+                                <button class="btn" style="height:46px; margin-left:10px; margin-right:10px;" onclick="openManualSearch()"><i class="fas fa-search"></i> Búsqueda Manual</button>
+                                <div style="width:100px"><label>Cant.</label><input id="scanQty" type="number" value="1" min="1" style="text-align:center"></div>
                                 <button class="btn" onclick="manualScan(1)">Agregar</button>
                                 <button class="btn" style="background:var(--danger)"
                                     onclick="openReturnModal()">Devolución</button>
@@ -2307,7 +2306,7 @@
         function openClientDetails(id) { const c = DB.clients.find(x => x.id === id); if (!c) return; document.getElementById('detailClientName').innerText = `Ficha: ${c.name}`; document.getElementById('client-detail-overlay').classList.add('active'); const movs = DB.movements.filter(m => m.client_id === id).reverse(); document.querySelector('#clientHistoryTable tbody').innerHTML = movs.map(m => { let note = m.note; let vendedor = '-'; if (note && note.startsWith('Venta #')) { const match = note.match(/Venta #(\d+)/); if (match && match[1]) { const saleId = parseInt(match[1]); const sale = DB.sales.find(s => s.id === saleId); if (sale) { vendedor = sale.seller || '-'; let itemsText = ""; try { const items = typeof sale.items === 'string' ? JSON.parse(sale.items) : (sale.items || []); itemsText = items.map(i => `${i.qty}x [${i.code}] ${i.name}`).join('<br>'); } catch (e) { itemsText = "Error" } if (itemsText) { if (note.includes('(Devolución)')) { note = `Devolución:<br><small style="color:var(--text-main); font-size:14px; display:block; margin-top:4px;">${itemsText}</small>`; } else { note = `<small style="color:var(--text-main); font-size:14px; display:block; margin-top:4px;">${itemsText}</small>`; } } } } } return `<tr><td style="vertical-align:top; border-bottom:1px solid var(--border-color); padding:10px;">${m.date}</td><td style="vertical-align:top; border-bottom:1px solid var(--border-color); padding:10px;">${m.type}</td><td style="vertical-align:top; border-bottom:1px solid var(--border-color); padding:10px;">${note}</td><td style="vertical-align:top; border-bottom:1px solid var(--border-color); padding:10px;">${vendedor}</td><td style="vertical-align:top; border-bottom:1px solid var(--border-color); padding:10px; color:${m.type === 'DEUDA' ? 'red' : 'lime'}">$${Math.abs(m.amount).toFixed(2)}</td></tr>`; }).join(''); }
         function editClient(id) { const c = DB.clients.find(x => x.id === id); document.getElementById('cli_id').value = c.id; document.getElementById('cli_name').value = c.name; document.getElementById('cli_dni').value = c.dni || ''; document.getElementById('cli_phone').value = c.phone; document.getElementById('cli_address').value = c.address; document.getElementById('cli_balance').value = c.balance || 0; }
         async function deleteClient(id) { const ok = await htmlConfirm('¿Eliminar cliente?'); if (ok) { const res = await window.electronAPI.deleteClient(id); if (res.success) { if (window.electronAPI.logAudit) window.electronAPI.logAudit({ username: currentUser.name, action: "Eliminar Cliente", details: "ID: " + id }); reloadData(); } else showToast(res.error, true); } }
-        async function backupSystem() { const link = document.createElement("a"); const blob = new Blob([JSON.stringify(DB)], { type: "application/json" }); link.href = URL.createObjectURL(blob); link.download = `backup_${new Date().toISOString().slice(0, 10)}.json`; link.click(); }
+        async function backupSystem() { const fullDB = await window.electronAPI.getFullBackup(); const link = document.createElement("a"); const blob = new Blob([JSON.stringify(fullDB)], { type: "application/json" }); link.href = URL.createObjectURL(blob); link.download = `backup_${new Date().toISOString().slice(0, 10)}.json`; link.click(); }
         function restoreBackup() { requireAdminAuth("Restaurar Respaldo", () => { const input = document.getElementById('restoreFile'); if (input.files.length === 0) return showToast('Seleccione JSON', true); const file = input.files[0]; const reader = new FileReader(); reader.onload = async function (e) { try { const data = JSON.parse(e.target.result); const ok = await htmlConfirm('¿Sobrescribir TODO?'); if (ok) { await window.electronAPI.restoreBackup(data); location.reload(); } } catch (err) { showToast('Error Archivo', true); } }; reader.readAsText(file); }); }
         function factoryReset() { requireAdminAuth("Formato de Fábrica", async () => { const ok = await htmlConfirm('¿BORRAR TODO EL SISTEMA?'); if (ok) { await window.electronAPI.factoryReset(); location.reload(); } }); }
         function addUser() { const n = document.getElementById('u_name').value, p = document.getElementById('u_pin').value, r = document.getElementById('u_role') ? document.getElementById('u_role').value : 'Vendedor'; if (n && p) { window.electronAPI.addUser({ name: n, pin: p, role: r }).then(() => { reloadData(); document.getElementById('u_name').value = ''; document.getElementById('u_pin').value = ''; }); } }
@@ -3045,7 +3044,80 @@
             }
         }
 
+        }
+
+        // --- BÚSQUEDA MANUAL DE VENTAS ---
+        function openManualSearch() {
+            document.getElementById('manualSearchInput').value = '';
+            document.getElementById('manualSearchTable').innerHTML = '';
+            document.getElementById('manual-search-overlay').classList.add('active');
+            setTimeout(() => document.getElementById('manualSearchInput').focus(), 100);
+            renderManualSearch();
+        }
+
+        function closeManualSearch() {
+            document.getElementById('manual-search-overlay').classList.remove('active');
+            document.getElementById('scanInput').focus();
+        }
+
+        function renderManualSearch() {
+            const term = document.getElementById('manualSearchInput').value.toLowerCase();
+            const tbody = document.getElementById('manualSearchTable');
+            
+            const results = DB.stock.filter(p => 
+                (p.name && p.name.toLowerCase().includes(term)) ||
+                (p.code && p.code.toLowerCase().includes(term)) ||
+                (p.category && p.category.toLowerCase().includes(term))
+            ).slice(0, 50);
+
+            tbody.innerHTML = results.map(p => `
+                <tr style="cursor:pointer;" onclick="selectManualProduct('${p.code}')">
+                    <td>${p.code}</td>
+                    <td>${p.name}</td>
+                    <td>${p.category || '-'}</td>
+                    <td>$${p.price.toFixed(2)}</td>
+                    <td>${p.qty}</td>
+                    <td>
+                        <button class="btn" style="padding:4px 8px; font-size:12px; margin:0;"><i class="fas fa-plus"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function selectManualProduct(code) {
+            document.getElementById('scanInput').value = code;
+            manualScan(1);
+            showToast("Producto agregado: " + code, false);
+        }
     </script>
+
+    <!-- OVERLAY BUSQUEDA MANUAL -->
+    <div class="overlay" id="manual-search-overlay">
+        <div class="modal" style="max-width: 800px; width:90%;">
+            <div class="modal-header">
+                <h3>Búsqueda Manual de Productos</h3>
+                <button class="btn-close" onclick="closeManualSearch()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="manualSearchInput" class="form-control" placeholder="Buscar por nombre, código o categoría..." oninput="renderManualSearch()" autocomplete="off" style="margin-bottom:15px;">
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manualSearchTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

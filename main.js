@@ -111,6 +111,27 @@ ipcMain.handle('db-get-all', async () => {
     });
 });
 
+// NUEVO: BACKUP COMPLETO (Sin límites)
+ipcMain.handle('db-get-full-backup', async () => {
+    return new Promise((resolve) => {
+        const data = { stock: [], users: [], sales: [], closures: [], clients: [], movements: [], expenses: [], audit_logs: [], shifts: [] };
+        db.serialize(() => {
+            db.all("SELECT * FROM products", (err, rows) => data.stock = rows || []);
+            db.all("SELECT * FROM sales", (err, rows) => data.sales = (rows || []).map(r => ({ ...r, items: JSON.parse(r.items_json) })));
+            db.all("SELECT * FROM closures", (err, rows) => data.closures = (rows || []).map(r => ({ ...r, details: JSON.parse(r.details_json) })));
+            db.all("SELECT * FROM users", (err, rows) => data.users = rows || []);
+            db.all("SELECT * FROM clients", (err, rows) => data.clients = rows || []);
+            db.all("SELECT * FROM client_movements", (err, rows) => data.movements = rows || []);
+            db.all("SELECT * FROM expenses", (err, rows) => data.expenses = rows || []);
+            db.all("SELECT * FROM audit_logs", (err, rows) => data.audit_logs = rows || []);
+            db.all("SELECT * FROM shifts", (err, rows) => {
+                data.shifts = rows || [];
+                resolve(data);
+            });
+        });
+    });
+});
+
 // 2. GUARDAR PRODUCTO (CORREGIDO: AHORA GUARDA MARCA Y CATEGORIA)
 ipcMain.handle('db-save-product', async (e, p) => {
     return new Promise((resolve) => {
@@ -174,8 +195,10 @@ ipcMain.handle('db-save-sale', async (e, s) => {
                     db.run("UPDATE clients SET balance = balance + ? WHERE id = ?", [s.total, s.client_id]);
                     const type = s.total < 0 ? 'DEVOLUCION' : 'DEUDA';
                     const amount = Math.abs(s.total);
-                    db.run("INSERT INTO client_movements (client_id, date, type, amount, note) VALUES (?,?,?,?,?)",
-                        [s.client_id, s.date, type, amount, `Venta #${s.id}${s.total < 0 ? ' (Devolución)' : ''}`]);
+                    const itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                    const noteText = `Venta #${s.id}${s.total < 0 ? ' (Devolución)' : ''} - ${itemsText}`;
+                    db.run("INSERT INTO client_movements (client_id, date, type, amount, note, ts) VALUES (?,?,?,?,?,?)",
+                        [s.client_id, s.date, type, amount, noteText, Date.now()]);
                 }
                 db.run("COMMIT", (err) => resolve({ success: !err }));
             } catch (error) {

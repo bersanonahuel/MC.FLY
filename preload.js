@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // --- MANTENIMIENTO ---
     factoryReset: () => ipcRenderer.invoke('db-factory-reset'),
     restoreBackup: (data) => ipcRenderer.invoke('db-restore-backup', data),
+    getFullBackup: () => ipcRenderer.invoke('db-get-full-backup'),
 
     // --- EXTRAS (Fiscal e Impresión) ---
     facturar: (v) => ipcRenderer.invoke('facturar-afip', v),
