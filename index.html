@@ -1821,8 +1821,12 @@
             const q = document.getElementById('searchClient').value.toLowerCase();
             const tbody = document.querySelector('#clientsTable tbody');
             const matches = DB.clients.filter(c => c.name.toLowerCase().includes(q));
-            const toRender = matches;
-            tbody.innerHTML = toRender.map(c => `<tr><td><strong>${c.name}</strong><br><small>DNI: ${c.dni || '-'}</small></td><td>${c.phone}</td><td>${c.address}</td><td style="color:${c.balance > 0 ? 'var(--danger)' : 'var(--accent)'}; font-weight:bold">$${Math.abs(c.balance).toFixed(2)}</td><td><button class="btn secondary" onclick="openClientDetails(${c.id})"><i class="fas fa-list"></i></button> <button class="btn secondary" onclick="openPayBox(${c.id})"><i class="fas fa-hand-holding-usd"></i></button> <button class="btn secondary" onclick="editClient(${c.id})"><i class="fas fa-edit"></i></button> <button class="btn-sm" style="color:red; margin-left:5px" onclick="deleteClient(${c.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+            // Límite de 50 para evitar lag en DOM (suficiente para la vista, y filtrable)
+            const toRender = matches.slice(0, 50);
+            
+            let html = toRender.map(c => `<tr><td><strong>${c.name}</strong><br><small>DNI: ${c.dni || '-'}</small></td><td>${c.phone}</td><td>${c.address}</td><td style="color:${c.balance > 0 ? 'var(--danger)' : 'var(--accent)'}; font-weight:bold">$${Math.abs(c.balance).toFixed(2)}</td><td><button class="btn secondary" onclick="openClientDetails(${c.id})"><i class="fas fa-list"></i></button> <button class="btn secondary" onclick="openPayBox(${c.id})"><i class="fas fa-hand-holding-usd"></i></button> <button class="btn secondary" onclick="editClient(${c.id})"><i class="fas fa-edit"></i></button> <button class="btn-sm" style="color:red; margin-left:5px" onclick="deleteClient(${c.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+            if(matches.length > 50) html += `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); font-size:12px; padding:15px;">Mostrando 50 de ${matches.length} clientes. Usa el buscador para refinar.</td></tr>`;
+            tbody.innerHTML = html;
         }
         function openPayBox(id) { clientToPay = DB.clients.find(x => x.id === id); document.getElementById('paymentBox').style.display = 'block'; document.getElementById('lblDebt').innerText = '$' + clientToPay.balance.toFixed(2); document.getElementById('payAmt').focus(); }
         // REEMPLAZAR EN index.html
@@ -1992,10 +1996,10 @@
                 });
             }
 
-            // --- RENDERIZADO (PAGINACIÓN VIRTUAL SIMPLE) ---
-            const toRender = filtered;
+            // --- RENDERIZADO (Límite visual para rendimiento) ---
+            const toRender = filtered.slice(0, 100);
 
-            tbody.innerHTML = toRender.map(s => {
+            let html = toRender.map(s => {
                 // Color Stock
                 let qtyStyle = "font-weight:bold; color:lime";
                 if (s.qty <= 0) qtyStyle = "font-weight:bold; color:red";
@@ -3044,6 +3048,9 @@
                     }).join('');
                 }
             }
+            
+            if(filtered.length > 100) html += `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:15px;">Mostrando 100 de ${filtered.length} productos. Por favor, usa el buscador.</td></tr>`;
+            tbody.innerHTML = html;
         }
 
         // --- BÚSQUEDA MANUAL DE VENTAS ---
@@ -3101,15 +3108,14 @@
 
     <!-- OVERLAY BUSQUEDA MANUAL -->
     <div class="overlay" id="manual-search-overlay">
-        <div class="modal" style="max-width: 800px; width:90%;">
-            <div class="modal-header">
-                <h3>Búsqueda Manual de Productos</h3>
-                <button class="btn-close" onclick="closeManualSearch()"><i class="fas fa-times"></i></button>
+        <div class="overlay-box" style="width: 800px; max-width:95%; max-height:85vh; display:flex; flex-direction:column; text-align:left">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <h3 style="margin:0; color:var(--primary)"><i class="fas fa-search"></i> Búsqueda Manual</h3>
+                <button class="btn secondary" onclick="closeManualSearch()"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body">
-                <input type="text" id="manualSearchInput" class="form-control" placeholder="Buscar por nombre, código o categoría..." autocomplete="off" style="margin-bottom:15px;">
-                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
-                    <table>
+            <input type="text" id="manualSearchInput" class="modal-input" placeholder="🔍 Buscar por nombre, código o categoría..." autocomplete="off" style="margin-bottom:15px; font-size:16px;">
+            <div class="table-container" style="flex:1; overflow-y:auto; border:1px solid var(--border-color); border-radius:10px;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
                         <thead>
                             <tr>
                                 <th>Código</th>
